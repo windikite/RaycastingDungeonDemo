@@ -1,0 +1,39 @@
+# Byte-compiled / optimized Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+env.bak/
+
+# PyInstaller build folders
+build/
+dist/
+
+# Downloaded Windows installer
+python-*.exe
+
+# IDE / editor folders and files
+.vscode/
+.idea/
+*.swp
+*~
+
+# macOS
+.DS_Store
+
+# Coverage / test artifacts
+.htmlcov/
+.coverage
+.coverage.*
+.pytest_cache/
+
+# Logs
+pip-log.txt
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
