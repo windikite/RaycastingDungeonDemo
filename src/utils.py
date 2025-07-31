@@ -17,3 +17,5 @@ def find_item_id_by_name(items, name):
             return itm.get_id()
     return None
 
+def display_options(options):
+    for i, x in enumerate(options): print(f'{i+1}.{x}')
