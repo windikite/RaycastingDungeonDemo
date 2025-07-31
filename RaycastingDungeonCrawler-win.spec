@@ -2,8 +2,8 @@
 
 
 a = Analysis(
-    ['raycastingDungeon.py'],
-    pathex=[],
+    ['src\\gameController.py'],
+    pathex=['./src'],
     binaries=[],
     datas=[('assets', 'assets')],
     hiddenimports=[],

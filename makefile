@@ -1,11 +1,12 @@
 PYTHON    := python3
 WINE_PY   := wine python
 
-SRC       := raycastingDungeon.py
+SRC       := ./src/gameController.py
+SRC_PATH  := ./src
 
-NAME := RaycastingDungeonCrawler
-
-DATA_LOCATION := assets:assets
+NAME      := RaycastingDungeonCrawler
+DATA_LINUX := assets:assets
+DATA_WIN   := assets;assets
 
 .PHONY: all linux windows clean
 
@@ -15,18 +16,20 @@ linux:
 	@echo "Building Linux standalone..."
 	$(PYTHON) -m PyInstaller \
 		--onefile \
-		--add-data "$(DATA_LOCATION)" \
 		--name "$(NAME)-linux" \
-		$(SRC)
+		--paths "$(SRC_PATH)" \
+		--add-data "$(DATA_LINUX)" \
+		"$(SRC)"
 
 windows:
 	@echo "Building Windows EXE via Wine..."
 	wine pyinstaller \
 		--onefile \
 		--windowed \
-		--add-data "$(DATA_LOCATION)" \
 		--name "$(NAME)-win" \
-		$(SRC)
+		--paths "$(SRC_PATH)" \
+		--add-data "$(DATA_WIN)" \
+		"$(SRC)"
 
 clean:
 	@echo "Cleaning build/dist/spec..."

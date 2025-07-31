@@ -2,15 +2,20 @@ from functools import partial
 import random
 
 def Heal(source, target, amount):
+    print('attempting to heal')
     t1 = source.get_name()
     t2 = target.get_name()
     health = target.set_hp(amount)
-    print(f'{t1} healed {t2} for {amount} health! {t2} now has {health} health.)')
-    return health
+    print(health)
+    return f'{t1} healed {t2} for {amount} health! {t2} now has {health} health.'
     
 def Damage(source, target, amount):
     health = target.take_damage(amount)
     return health
+
+def Stella(source, target):
+    damage_amount = random.randint(7, 13)
+    return Damage(source, target, damage_amount)
 
 def Starshower(source, defenders):
     print(f'{source.get_name()} calls down a shower of stars!')
@@ -42,3 +47,12 @@ def Projectile_Weapon_With_Ammo(source, target, ammo_id, ammo_quantity, damage):
 def Shoot_Revolver(source, target, ammo_id, ammo_quantity, damage):
     print(f'{source.get_name()} tries to shoot {target.get_name()} with a revolver!')
     shot = Projectile_Weapon_With_Ammo(source, target, ammo_id, ammo_quantity, damage)
+
+def AOEDamage(source, targets, damage_amount):
+    for target in targets:
+        Damage(source, target, damage_amount)
+    return True
+
+def Weapon_Attack(source, target):
+    attack_message, current_health, damage_message = source.attack(target)
+    return f'{attack_message} {damage_message}'
