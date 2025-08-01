@@ -349,41 +349,41 @@ class UI:
         message_box = self.draw_rectangle(message_box_h, message_box_v, message_box_width, message_box_height, message_box_color, box_border_color)
         self.write_text_within_box(message_box, messages, (200, 200, 200))
     
-    def draw_grid_menu(self, group, options):
-        # draw menu box
-        menu_box_h = 0
-        menu_box_v = self.HEIGHT - self.HEIGHT * 0.33
-        menu_box_width = self.WIDTH
-        menu_box_height = self.HEIGHT * 0.33
-        menu_box_color = (30, 30, 30)
-        box_border_color = (200, 200, 200)
-        menu_box = self.draw_rectangle(menu_box_h, menu_box_v, menu_box_width, menu_box_height, menu_box_color, box_border_color)
-        # draw individual tiles
-        tile_width = menu_box_width / 3
-        tile_height = menu_box_height / 2
-        left_column = 0
-        middle_column = tile_width
-        right_column = tile_width * 2
-        top_row = menu_box_v
-        bottom_row = menu_box_v + tile_height
-        party_tiles = [self.draw_rectangle(*x) for x in [
-            [left_column, top_row, tile_width, tile_height, menu_box_color, box_border_color],
-            [middle_column, top_row, tile_width, tile_height, menu_box_color, box_border_color],
-            [right_column, top_row, tile_width, tile_height, menu_box_color, box_border_color],
-            [left_column, bottom_row, tile_width, tile_height, menu_box_color, box_border_color],
-            [middle_column, bottom_row, tile_width, tile_height, menu_box_color, box_border_color],
-            [right_column, bottom_row, tile_width, tile_height, menu_box_color, box_border_color]
-        ]]
-        # write text for each character within their tile
-        zipped_party_tiles = zip(group, party_tiles)
-        for combo in zipped_party_tiles:
-            char = combo[0]
-            tile = combo[1]
-            character_data = [
-                char.get_name(), 
-                f'HP: {char.get_stats()['cur_health']} / {char.get_stats()['max_health']}'
-            ]
-            self.write_text_within_box(tile, character_data, (200, 200, 200))
+    # def draw_grid_menu(self, group, options):
+    #     # draw menu box
+    #     menu_box_h = 0
+    #     menu_box_v = self.HEIGHT - self.HEIGHT * 0.33
+    #     menu_box_width = self.WIDTH
+    #     menu_box_height = self.HEIGHT * 0.33
+    #     menu_box_color = (30, 30, 30)
+    #     box_border_color = (200, 200, 200)
+    #     menu_box = self.draw_rectangle(menu_box_h, menu_box_v, menu_box_width, menu_box_height, menu_box_color, box_border_color)
+    #     # draw individual tiles
+    #     tile_width = menu_box_width / 3
+    #     tile_height = menu_box_height / 2
+    #     left_column = 0
+    #     middle_column = tile_width
+    #     right_column = tile_width * 2
+    #     top_row = menu_box_v
+    #     bottom_row = menu_box_v + tile_height
+    #     party_tiles = [self.draw_rectangle(*x) for x in [
+    #         [left_column, top_row, tile_width, tile_height, menu_box_color, box_border_color],
+    #         [middle_column, top_row, tile_width, tile_height, menu_box_color, box_border_color],
+    #         [right_column, top_row, tile_width, tile_height, menu_box_color, box_border_color],
+    #         [left_column, bottom_row, tile_width, tile_height, menu_box_color, box_border_color],
+    #         [middle_column, bottom_row, tile_width, tile_height, menu_box_color, box_border_color],
+    #         [right_column, bottom_row, tile_width, tile_height, menu_box_color, box_border_color]
+    #     ]]
+    #     # write text for each character within their tile
+    #     zipped_party_tiles = zip(group, party_tiles)
+    #     for combo in zipped_party_tiles:
+    #         char = combo[0]
+    #         tile = combo[1]
+    #         character_data = [
+    #             char.get_name(), 
+    #             f'HP: {char.get_stats()['cur_health']} / {char.get_stats()['max_health']}'
+    #         ]
+    #         self.write_text_within_box(tile, character_data, (200, 200, 200))
     
     def create_sprites(self, party, enemies):
         rect = self.screen.get_rect()

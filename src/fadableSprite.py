@@ -1,16 +1,5 @@
-import sys, os
+from resourceLoader import resource_path
 import pygame
-
-def resource_path(rel_path):
-    if getattr(sys, "_MEIPASS", False):
-        # PyInstaller onefile mode—resources are unpacked here
-        base = sys._MEIPASS
-    else:
-        # running in normal Python: go up out of src/ to project root
-        base = os.path.abspath(
-            os.path.join(os.path.dirname(__file__), os.pardir)
-        )
-    return os.path.join(base, rel_path)
 
 class FadableSprite(pygame.sprite.Sprite):
     def __init__(self, image_path, center, fade_speed=300, default_alpha=255, orientation="front"):
@@ -19,8 +8,7 @@ class FadableSprite(pygame.sprite.Sprite):
         self.image_path = image_path
         self.character_orientation = orientation
         self.character_state = "idle"
-        self.image_string = resource_path(os.path.join("assets", image_path + '_' + self.character_orientation + '_' + self.character_state + '.png'))
-        self.original = pygame.image.load(self.image_string).convert_alpha()
+        self.original = pygame.image.load(resource_path(image_path + '_' + self.character_orientation + '_' + self.character_state + '.png')).convert_alpha()
         self.image    = self.original.copy()
         self.rect     = self.image.get_rect(center=center)
         

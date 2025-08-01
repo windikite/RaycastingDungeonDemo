@@ -1,6 +1,5 @@
 import random, pygame
 from utils import *
-# from classes import *
 from effects import *
 from actionMenu import ActionMenu
 
