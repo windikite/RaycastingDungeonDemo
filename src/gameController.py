@@ -1,8 +1,7 @@
 import pygame
-# from battle import Battle
 from dungeonController import DungeonController
-from uiController import UI
 from saveManager import SaveManager
+from uiController import UI
 from utils import *
 from effects import *
 from item import Item

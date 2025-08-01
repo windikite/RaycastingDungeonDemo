@@ -1,10 +1,20 @@
-PYTHON    := python3
-WINE_PY   := wine python
+# ──────────────────────────────────────────────────────────────────────────────
+# Makefile for RaycastingDungeonCrawler (one-dir builds)
+# ──────────────────────────────────────────────────────────────────────────────
 
-SRC       := ./src/gameController.py
-SRC_PATH  := ./src
+# Linux Python
+PYTHON     := python3
+# Windows Python under Wine
+WINE_PY    := wine python
 
-NAME      := RaycastingDungeonCrawler
+# Where your code lives
+SRC_DIR    := src
+ENTRY      := $(SRC_DIR)/__main__.py
+
+# Output base name
+NAME       := RaycastingDungeonCrawler
+
+# How to ship assets
 DATA_LINUX := assets:assets
 DATA_WIN   := assets;assets
 
@@ -13,24 +23,28 @@ DATA_WIN   := assets;assets
 all: linux windows
 
 linux:
-	@echo "Building Linux standalone..."
+	@echo "→ Building Linux one-dir bundle…"
 	$(PYTHON) -m PyInstaller \
-		--onefile \
+		--onedir \
 		--name "$(NAME)-linux" \
-		--paths "$(SRC_PATH)" \
+		--paths "$(SRC_DIR)" \
 		--add-data "$(DATA_LINUX)" \
-		"$(SRC)"
+		"$(ENTRY)"
 
 windows:
-	@echo "Building Windows EXE via Wine..."
-	wine pyinstaller \
-		--onefile \
+	@echo "→ Building Windows one-dir bundle…"
+	$(WINE_PY) -m PyInstaller \
+		--debug=imports \
+		--onedir \
 		--windowed \
 		--name "$(NAME)-win" \
-		--paths "$(SRC_PATH)" \
-		--add-data "$(DATA_WIN)" \
-		"$(SRC)"
+		--paths "$(SRC_DIR)" \
+		--add-data="$(DATA_WIN)" \
+		--collect-submodules core \
+		--hidden-import core.uiController \
+		--add-data "src/uiController.py;." \
+		"$(ENTRY)"
 
 clean:
-	@echo "Cleaning build/dist/spec..."
-	rm -rf build/ dist/ __pycache__ *.spec
+	@echo "← Cleaning build artifacts…"
+	rm -rf build/ dist/ *.spec
