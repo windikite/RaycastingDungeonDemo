@@ -1,41 +1,69 @@
 import random, pygame
 from utils import *
 from effects import *
-from actionMenu import ActionMenu
+from character import Character
 
 
 class BattleController:
     INIT, PLAYER_WAIT, PLAYER_ACTION, ENEMY_ACTION, CLEANUP = range(5)
 
-    def __init__(self, game, party, enemies):
+    def __init__(self, game, mag):
         self.game = game
-        self.party = party
-        self.enemies = enemies
-        self.turn_order = []
-        self.current    = 0
-        self.state      = self.INIT
-        self.party_menu = ActionMenu(game, self, self.party)
+        self.mag = mag
+        self.enemy_templates = self.game.enemy_templates
+        self.party = self.game.party
+        self.enemies = []
+        self.current_character_index = 0
+        self.state = self.INIT
+        self.atb_paused = False
         self.selection = None
         self.selection_target = None
         self.message_queue = []
-        self.party_menu.generate_menu_options()
-        self.game.UI.create_sprites(self.party, self.enemies)
-        # self.game.UI.show_one_party_sprite(0)
-        # self.game.UI.show_one_enemy_sprite(0)
+        self.mag.subscribe("battle:start", self.initialize_battle)
+        self.mag.subscribe("battle:input", self.handle_event)
+        self.mag.subscribe("battle:update", self.update)
+        self.mag.subscribe("battle:end", self.end_battle)
+        self.mag.subscribe("atb:pause", self.pause_atb)
+        self.mag.subscribe("atb:unpause", self.unpause_atb)
+    
+    def generate_encounter(self):
+        selected_enemy_indices = RandomSelect(len(self.enemy_templates), 3, True)
+        selected_enemies = [Character(self.game, self.enemy_templates[x]) for x in selected_enemy_indices]
+        self.game.enemies = selected_enemies
+        self.mag.publish("enemies:created", enemies=selected_enemies)
+        return selected_enemies
         
     def determine_initiative(self):
-        self.add_messages("rolling initiative...")
         self.turn_order = sorted(
             self.party + self.enemies,
             key=lambda c: c.stats["spd"],
             reverse=True
         )
     
-    def end_battle(self):
-        self.game.state = "EXPLORE"
-        self.game.battle = None
+    def initialize_battle(self):
+        self.generate_encounter()
+        self.determine_initiative()
+        self.mag.publish("battle:initialized")
     
-    def update(self, dt):
+    def end_battle(self):
+        self.mag.publish("state:change")
+        self.mag.publish("explore:start")
+
+    def handle_event(self, e):
+        if e.type == pygame.KEYDOWN:
+            self.mag.publish("player:input", e=e)
+    
+    def progress_atb(self, dt):
+        for x in (self.game.party + self.game.enemies):
+            x.atb_ms = min(x.atb_ms + (dt * 1000), x.cooldown_ms)
+    
+    def pause_atb(self):
+        self.atb_paused = True
+    
+    def unpause_atb(self):
+        self.atb_paused = False
+    
+    def update(self, dt, time):
         if self.state == self.INIT:
             self.determine_initiative()
             self.state = self.PLAYER_WAIT
@@ -45,54 +73,32 @@ class BattleController:
                 self.state = self.PLAYER_ACTION
 
         elif self.state == self.PLAYER_ACTION:
-            actor = self.turn_order[self.current]
-            target = self.selection_target
-            attack_message, current_health, damage_message = actor.attack(target)
-            self.add_messages([attack_message, damage_message])
-            self.clear_selection()
+            # actor = self.turn_order[self.current_character_index]
+            # target = self.selection_target
+            # attack_message, current_health, damage_message = actor.attack(target)
+            # self.add_messages([attack_message, damage_message])
+            # self.clear_selection()
             self.state = self.ENEMY_ACTION
 
         elif self.state == self.ENEMY_ACTION:
             actor = self.turn_order[self.current]
             if not actor.get_party():
                 self._run_ai(actor)
-            self.current = (self.current + 1) % len(self.turn_order)
+            self.current_character_index = (self.current_character_index + 1) % len(self.turn_order)
             if self._check_victory():
                 self.state = self.CLEANUP
             else:
                 self.state = self.PLAYER_WAIT
-
         elif self.state == self.CLEANUP:
             self.end_battle()
-        self.game.UI.update(dt)
-
-    def handle_event(self, event):
-        if event.type == pygame.KEYDOWN:
             if self.message_queue:
                 if event.key == pygame.K_SPACE:
                     self.clear_messages()
                 return
             if self.state == self.PLAYER_WAIT:
-                if event.key == pygame.K_UP:
-                    self.party_menu.move_select_up()
-                elif event.key == pygame.K_DOWN:
-                    self.party_menu.move_select_down()
-                elif event.key == pygame.K_SPACE:
-                    self.party_menu.confirm()
-                # elif event.key == pygame.K_LEFT:
-                #     self.party_menu.cycle_up()
-                # elif event.key == pygame.K_LEFT:
-                #     self.party_menu.cycle_up()
-
-    def render(self):
-        self.game.UI.draw_battlefield()
-        if self.enemies:
-            self.game.UI.draw_sprites()
-        if self.message_queue:
-            self.game.UI.draw_message_box(self.message_queue)
-        else:
-            if self.state == self.PLAYER_WAIT:
-                self.game.UI.draw_player_menu(self.party_menu.current_menu_slot_index, self.party_menu.options)
+                pass
+        if self.atb_paused == False:
+            self.progress_atb(dt)
 
     def _run_ai(self, char):
         valid = [c for c in (self.party if not char.get_party() else self.enemies) if c.stats["cur_health"]>0]
@@ -113,18 +119,8 @@ class BattleController:
         self.selection = None
         self.selection_target = None
     
-    def clear_messages(self):
-        self.message_queue.clear()
-    
     def add_messages(self, messages):
-        self.clear_messages()
-        if isinstance(messages, (str, int)):
-            self.message_queue.append(messages)
-        elif isinstance(messages, list):
-            for message in messages:
-                self.message_queue.append(message)
-        else:
-            self.message_queue.append('Failed to get message!')
+        self.mag.publish("messages:add", messages=messages)
             
 
         # def handle_ai(self, char, attackers, defenders):
@@ -190,11 +186,7 @@ class BattleController:
     #                         break
     #                     if int(i) == 3:
     #                         party_target_index = RandomSelect(len(self.party), 1, False)[0]
-    #                         Heal(char, self.party[party_target_index], 2)
-    #                         sub_menu = 0
-    #                         i = 0
-    #                         break
-    #                 if sub_menu == 2:
+    #                         Heal(char, self.pa
     #                     if int(i) == 0:
     #                         char.inventory.add_item(self.game.items[0])
     #                         inventory = [str(x) for x in char.inventory.get_items()]
@@ -214,6 +206,8 @@ class BattleController:
     #     self.next_turn()
         
     # def next_turn(self):
+        # self.game.UI.show_one_party_sprite(0)
+        # self.game.UI.show_one_enemy_sprite(0)
     #     ti = self.turn_index
     #     if(ti != len(self.turn_order) - 1):
     #         ti += 1

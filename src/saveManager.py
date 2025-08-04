@@ -42,13 +42,13 @@ party_table = [
         "sprite": "rayne"
     },
 ]
-# ["Wynn", 12, 3, 1, 2, True],
-#     ["Rayne", 8, 4, 1, 4, True],
-#     ["Plat", 8, 4, 1, 4, True],
+
 class SaveManager:
-    def __init__(self, game):
+    def __init__(self, game, mag):
         self.game = game
         self.party = game.party
+        self.mag = mag
+        self.mag.subscribe("data:load", self.load_save)
     
     def generate_characters(self):
         self.party.clear()
