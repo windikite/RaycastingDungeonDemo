@@ -31,6 +31,8 @@ class UI:
         self.current_menu_slot_index = None
         self.selection = None
         self.target = None
+        
+        self.show_player_battle_menu = False
 
         self.mag.subscribe("player:position", self.update_player_positioning)
         self.mag.subscribe("dungeon:render", self.render_dungeon_ui)
@@ -39,6 +41,9 @@ class UI:
         self.mag.subscribe("enemies:created", self.setup_battle_ui)
         self.mag.subscribe("messages:add", self.add_to_message_queue)
         self.mag.subscribe("menu:update", self.update_player_menu)
+        self.mag.subscribe("character:dead", self.fade_sprite)
+        self.mag.subscribe("battlemenu:show", self.show_battle_menu)
+        self.mag.subscribe("battlemenu:hide", self.hide_battle_menu)
 
     def draw_button(
         self,
@@ -405,8 +410,8 @@ class UI:
     
     def create_sprites(self, party, enemies):
         rect = self.screen.get_rect()
-        self.enemy_sprites = pygame.sprite.Group(FadableSprite(char.sprite, ((rect.width / (len(enemies) + 1)) * i, rect.height / 4), 255, orientation="front") for i, char in enumerate(enemies, start=1)) 
-        self.party_sprites = pygame.sprite.Group(FadableSprite(char.sprite, ((rect.width / (len(party) + 1)) * i, rect.height * 0.75), 255, orientation="back") for i, char in enumerate(party, start=1))
+        self.enemy_sprites = pygame.sprite.Group(FadableSprite(char.id, char.sprite, ((rect.width / (len(enemies) + 1)) * i, rect.height / 4), 255, orientation="front") for i, char in enumerate(enemies, start=1)) 
+        self.party_sprites = pygame.sprite.Group(FadableSprite(char.id, char.sprite, ((rect.width / (len(party) + 1)) * i, rect.height * 0.75), 255, orientation="back") for i, char in enumerate(party, start=1))
 
     def show_one_party_sprite(self, index):
         for i, spr in enumerate(self.party_sprites.sprites()):
@@ -422,7 +427,7 @@ class UI:
     
     def update_player_menu(self, menu):
         self.options = menu["options"]
-        self.current_character = menu["options"]
+        self.current_character = menu["current_character"]
         self.current_menu_slot_index = menu["current_menu_slot_index"]
         self.selection = menu["selection"]
         self.target = menu["target"]
@@ -480,11 +485,15 @@ class UI:
         # draw individual slots
         slot_color = (50, 50, 50)
         slot_width = menu_box_width
-        slot_height = menu_box_height / 5
+        slot_height = self.FONT_SIZE + (self.FONT_SIZE * .10)
         player_menu_option_names = [x.get_name() if isinstance(x, (Character, Action)) else f'{x.quantity}x {x.item.get_name()}' if isinstance(x, Item) else x for x in self.options]
         options_with_marking = [x+'<' if i == self.current_menu_slot_index else x for i,x in enumerate(player_menu_option_names)] 
         text_color = (255, 255, 255)
         option_menu = self.write_text_within_box(menu_box, options_with_marking, text_color)
+        # draw name plate
+        name_plate_box = self.draw_rectangle(menu_box_h, menu_box_v - slot_height, menu_box_width, slot_height, menu_box_color, text_color)
+        char_name = self.current_character.name if self.current_character else ''
+        name_text = self.write_text_within_box(name_plate_box, [char_name], text_color, h_padding=10, v_padding=10, line_spacing=(self.FONT_SIZE * 0.1))
         
         # action_slots = [self.draw_rectangle(*x) for i, x in enumerate(options)]
         # self.draw_grid_menu(self.game.battle.enemies, player_menu_options)
@@ -506,6 +515,17 @@ class UI:
         
 
     # def draw_button(self, callback):
+
+    def fade_sprite(self, char):
+        found_sprite = next(sp for sp in self.enemy_sprites.sprites() + self.party_sprites.sprites() if sp.char_id == char.id)
+        if found_sprite:
+            found_sprite.set_target_alpha(100)
+    
+    def show_battle_menu(self):
+        self.show_player_battle_menu = True
+    
+    def hide_battle_menu(self):
+        self.show_player_battle_menu = False
 
     def update_player_positioning(self, player_x, player_y, player_angle):
         self.player_x = player_x
@@ -543,7 +563,7 @@ class UI:
     def render_battle_ui(self):
         self.draw_battlefield()
         self.draw_sprites()
-        if self.options:
+        if self.options and self.show_player_battle_menu == True:
             self.draw_player_menu()
         if self.game.party:
             self.draw_party_ui()

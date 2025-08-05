@@ -6,7 +6,6 @@ def Heal(source, target, amount):
     t1 = source.get_name()
     t2 = target.get_name()
     health = target.set_hp(amount)
-    print(health)
     return f'{t1} healed {t2} for {amount} health! {t2} now has {health} health.'
     
 def Damage(source, target, amount):
@@ -55,4 +54,4 @@ def AOEDamage(source, targets, damage_amount):
 
 def Weapon_Attack(source, target):
     attack_message, current_health, damage_message = source.attack(target)
-    return f'{attack_message} {damage_message}'
+    return attack_message, current_health, damage_message
