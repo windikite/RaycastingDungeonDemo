@@ -1,6 +1,7 @@
 import pygame
 from action import Action
 from effects import *
+from turn import Turn
 
 class ActionMenu:
     def __init__(self, game, mag):
@@ -16,11 +17,17 @@ class ActionMenu:
         self.selection_target = None
 
         self.mag.subscribe("battle:initialized", self.initialize_menu)
-        self.mag.subscribe("character:change", self.generate_menu_options)
+        self.mag.subscribe("character:change", self.change_character)
         self.mag.subscribe("player:input", self.handle_input)
 
     def package_option(self, action_name, callback):
         return Action(action_name, callback)
+    
+    def change_character(self, char):
+        self.current_character = char
+        self.generate_menu_options()
+        self.publish_menu()
+        self.mag.publish("battlemenu:show")
 
     def generate_menu_options(self):
         if self.menu == 'Main':
@@ -54,9 +61,9 @@ class ActionMenu:
     def initialize_menu(self):
         self.clear_menu_position()
         self.clear_selection()
-        self.current_character = self.game.party[self.current_party_slot_index]
-        self.generate_menu_options()
-        self.publish_menu()
+        if self.current_character is not None:
+            self.generate_menu_options()
+            self.publish_menu()
     
     def move_select_up(self):
         if self.current_menu_slot_index > 0:
@@ -128,10 +135,11 @@ class ActionMenu:
                 self.options = self.get_valid_targets()
                 self.mag.publish("atb:pause")
         else:
-            if self.menu == 'Targets':
-                result = self.selection.activate(self.current_character, self.options[self.current_menu_slot_index])
-                self.mag.publish("messages:add", messages=result)
-                self.current_character.set_cooldown(3000)
+            turn = Turn(self.current_character, self.selection, self.options[self.current_menu_slot_index])
+            self.current_character = None
+            self.mag.publish("turnqueue:add", turn=turn)
+            self.mag.publish("turn:packaged", char=self.current_character)
+            self.mag.publish("battlemenu:hide")
             self.mag.publish("atb:unpause")
             self.clear_selection()
             self.clear_menu_position()
@@ -150,14 +158,15 @@ class ActionMenu:
         })
     
     def handle_input(self, e):
-        if e.key == pygame.K_UP:
-            self.move_select_up()
-        elif e.key == pygame.K_DOWN:
-            self.move_select_down()
-        elif e.key == pygame.K_SPACE:
-            self.confirm()
-        elif e.key == pygame.K_LEFT:
-            pass
-        elif e.key == pygame.K_RIGHT:
-            pass
-        self.publish_menu()
+        if self.current_character:
+            if e.key == pygame.K_UP:
+                self.move_select_up()
+            elif e.key == pygame.K_DOWN:
+                self.move_select_down()
+            elif e.key == pygame.K_SPACE:
+                self.confirm()
+            elif e.key == pygame.K_LEFT:
+                pass
+            elif e.key == pygame.K_RIGHT:
+                pass
+            self.publish_menu()

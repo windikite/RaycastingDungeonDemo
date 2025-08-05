@@ -2,8 +2,9 @@ from resourceLoader import resource_path
 import pygame
 
 class FadableSprite(pygame.sprite.Sprite):
-    def __init__(self, image_path, center, fade_speed=300, default_alpha=255, orientation="front"):
+    def __init__(self, char_id, image_path, center, fade_speed=300, default_alpha=255, orientation="front"):
         super().__init__()
+        self.char_id = char_id
         # 1) load once, keep an un‑modified copy
         self.image_path = image_path
         self.character_orientation = orientation
