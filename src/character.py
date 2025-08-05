@@ -20,8 +20,8 @@ class Character(Entity):
         self.magic = SpellCompendium(self.game, character_data["magic"])
         self.is_party = character_data["is_party"]
         self.sprite = character_data["sprite"]
-        self.last_action = 0.0
-        self.next_action = 0.0
+        self.atb_ms = 0
+        self.cooldown_ms = 0
         
     def get_stats(self):
         return self.stats
@@ -51,11 +51,15 @@ class Character(Entity):
         return attack_message, current_health, damage_message
         
     def set_hp(self, amount):
-        cur = self.stats["cur_health"]
-        max = self.stats["max_health"]
-        if(cur + amount > max):
-            cur = max
+        current_health = self.stats["cur_health"]
+        max_health = self.stats["max_health"]
+        if(current_health + amount > max_health):
+            current_health = max_health
         else:
-            cur += amount
-        self.stats["cur_health"] = cur
-        return cur
+            current_health += amount
+        self.stats["cur_health"] = current_health
+        return current_health
+
+    def set_cooldown(self, cooldown_time):
+        self.atb_ms = 0
+        self.cooldown_ms = cooldown_time

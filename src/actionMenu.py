@@ -3,11 +3,10 @@ from action import Action
 from effects import *
 
 class ActionMenu:
-    def __init__(self, game, battle, party):
+    def __init__(self, game, mag):
         self.game = game
-        self.battle = battle
-        self.party = party
-        self.current_character = self.party[0]
+        self.mag = mag
+        self.current_character = None
         self.menu = 'Main'
         self.options = []
         self.current_menu_slot_index = 0
@@ -15,6 +14,10 @@ class ActionMenu:
         self.current_party_slot_index = 0
         self.current_enemy_slot_index = 0
         self.selection_target = None
+
+        self.mag.subscribe("battle:initialized", self.initialize_menu)
+        self.mag.subscribe("character:change", self.generate_menu_options)
+        self.mag.subscribe("player:input", self.handle_input)
 
     def package_option(self, action_name, callback):
         return Action(action_name, callback)
@@ -24,22 +27,17 @@ class ActionMenu:
             self.options = ['Attack', 'Magic', 'Items', 'Flee']
         elif self.menu == 'Magic':
             self.options = [action.get_name() for action in self.current_character.magic.get_items()]
-            print(self.options)
         elif self.menu == 'Items':
             self.options = [item.item.get_name() for item in self.current_character.inventory.get_items()]
         elif self.menu == 'Enemies':
-            self.options = [enemy.get_name() for enemy in self.battle.enemies]
+            self.options = [enemy.get_name() for enemy in self.game.enemies]
         elif self.menu == 'Party':
-            self.options = [char.get_name() for char in self.party]
+            self.options = [char.get_name() for char in self.game.party]
         return self.options
-    
-    def generate_party_options(self):
-        party_options = [self.generate_menu_options(x) for x in self.party]
-        return zip(self.party, party_options)
     
     def clear_menu_position(self):
         self.menu = 'Main'
-    
+
     def clear_current_menu_slot_index(self):
         self.current_menu_slot_index = 0
 
@@ -48,10 +46,17 @@ class ActionMenu:
     
     def clear_current_party_slot_index(self):
         self.current_party_slot_index = 0
-
+    
     def clear_selection(self):
         self.selection = None
         self.selection_target = None
+    
+    def initialize_menu(self):
+        self.clear_menu_position()
+        self.clear_selection()
+        self.current_character = self.game.party[self.current_party_slot_index]
+        self.generate_menu_options()
+        self.publish_menu()
     
     def move_select_up(self):
         if self.current_menu_slot_index > 0:
@@ -69,34 +74,29 @@ class ActionMenu:
             elif self.menu == "Party":
                 self.cycle_party_down()
     
-    # def update_visible_enemy_sprite(self):
-    #     self.game.UI.show_one_enemy_sprite(self.current_enemy_slot_index)
-
     def cycle_party_up(self):
         if self.current_party_slot_index > 0:
             self.current_party_slot_index -= 1
     
     def cycle_party_down(self):
-        if self.current_party_slot_index < len(self.party) - 1:
+        if self.current_party_slot_index < len(self.game.party) - 1:
             self.current_party_slot_index += 1
     
     def cycle_enemy_up(self):
         if self.current_enemy_slot_index > 0:
             self.current_enemy_slot_index -= 1
-            # self.update_visible_enemy_sprite()
     
     def cycle_enemy_down(self):
-        if self.current_enemy_slot_index < len(self.battle.enemies) - 1:
+        if self.current_enemy_slot_index < len(self.game.enemies) - 1:
             self.current_enemy_slot_index += 1
-            # self.update_visible_enemy_sprite()
     
     def get_valid_targets(self):
         if self.selection.can_target == 'Enemies':
-            return self.battle.enemies
+            return self.game.enemies
         elif self.selection.can_target == 'Party':
-            return self.party
+            return self.game.party
         elif self.selection.can_target == 'All':
-            return [*self.party, *self.battle.enemies]
+            return [*self.game.party, *self.game.enemies]
     
     def confirm(self):
         if self.selection == None:
@@ -105,27 +105,59 @@ class ActionMenu:
                     self.selection = self.current_character.weapon_attack
                     self.menu = 'Targets'
                 elif self.current_menu_slot_index == len(self.options) -1:
-                    self.battle.end_battle()
+                    self.mag.publish("battle:end")
                 else:
                     self.menu = self.options[self.current_menu_slot_index]
             elif self.menu == 'Magic':
                 if len(self.current_character.magic.get_items()) >= 1:
-                    self.selection = self.current_character.magic.get_items()[self.current_menu_slot_index]
+                    choice = self.current_character.magic.get_items()[self.current_menu_slot_index]
+                    if choice.callback == None:
+                        return
+                    else:
+                        self.selection = choice
                     self.menu = 'Targets'
             elif self.menu == 'Items':
                 if len(self.current_character.inventory.get_items()) >= 1:
-                    self.selection = self.current_character.inventory.get_items()[self.current_menu_slot_index]
+                    choice = self.current_character.inventory.get_items()[self.current_menu_slot_index]
+                    if choice.callback == None:
+                        return
+                    else:
+                        self.selection = choice
                     self.menu = 'Targets'
             if self.selection != None:
                 self.options = self.get_valid_targets()
+                self.mag.publish("atb:pause")
         else:
             if self.menu == 'Targets':
                 result = self.selection.activate(self.current_character, self.options[self.current_menu_slot_index])
-                print(result)
-                self.battle.add_messages(result)
+                self.mag.publish("messages:add", messages=result)
+                self.current_character.set_cooldown(3000)
+            self.mag.publish("atb:unpause")
             self.clear_selection()
             self.clear_menu_position()
             self.clear_current_enemy_slot_index()
             self.clear_current_party_slot_index()
         self.clear_current_menu_slot_index()
         self.generate_menu_options()
+    
+    def publish_menu(self):
+        self.mag.publish("menu:update", menu={
+            "options":self.options,
+            "current_character":self.current_character,
+            "current_menu_slot_index":self.current_menu_slot_index,
+            "selection":self.selection,
+            "target":self.selection_target
+        })
+    
+    def handle_input(self, e):
+        if e.key == pygame.K_UP:
+            self.move_select_up()
+        elif e.key == pygame.K_DOWN:
+            self.move_select_down()
+        elif e.key == pygame.K_SPACE:
+            self.confirm()
+        elif e.key == pygame.K_LEFT:
+            pass
+        elif e.key == pygame.K_RIGHT:
+            pass
+        self.publish_menu()

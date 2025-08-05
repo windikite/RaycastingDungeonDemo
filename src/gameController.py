@@ -1,11 +1,14 @@
 import pygame
 from dungeonController import DungeonController
+from battleController import BattleController
 from saveManager import SaveManager
 from uiController import UI
+from magazine import Mag
 from utils import *
 from effects import *
 from item import Item
 from spell import Spell
+from actionMenu import ActionMenu
 
 dungeon_map = [
     [1]*26,
@@ -26,6 +29,52 @@ dungeon_map = [
     [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
     [1]+[0]*24+[1],
     [1]*26,
+]
+
+# Name - HP - ATT - RES - SPD - Player
+enemy_table = [
+    {
+        "name": "Goblin",
+        "max_health": 5,
+        "cur_health": 5,
+        "attack": 3,
+        "resistance": 1,
+        "speed": 3,
+        "is_party": False,
+        "inventory": [
+        ],
+        "magic": [
+        ],
+        "sprite": "goblin"
+    },
+    {
+        "name": "Slime",
+        "max_health": 15,
+        "cur_health": 15,
+        "attack": 2,
+        "resistance": 2,
+        "speed": 0,
+        "is_party": False,
+        "inventory": [
+        ],
+        "magic": [
+        ],
+        "sprite": "slime"
+    },
+    {
+        "name": "Skeleton",
+        "max_health": 3,
+        "cur_health": 3,
+        "attack": 2,
+        "resistance": 2,
+        "speed": 1,
+        "is_party": False,
+        "inventory": [
+        ],
+        "magic": [
+        ],
+        "sprite": "skeleton"
+    },
 ]
 
 # Item Effects
@@ -106,14 +155,20 @@ class GameController:
         pygame.display.set_caption("SMT")
         self.clock  = pygame.time.Clock()
         self.FPS = 60
-        self.state  = "EXPLORE"
-        self.battle = None
+        self.state  = "explore"
+        self.mag = Mag()
         self.party = []
         self.items = []
         self.magic = []
-        self.save_manager = SaveManager(self)
-        self.dungeon_controller = DungeonController(self, dungeon_map)
-        self.UI = UI(self)
+        self.enemies = []
+        self.enemy_templates = enemy_table
+        self.battle = BattleController(self, self.mag)
+        self.save_manager = SaveManager(self, self.mag)
+        self.dungeon_controller = DungeonController(self, dungeon_map, self.mag)
+        self.action_menu = ActionMenu(self, self.mag)
+        self.UI = UI(self, self.mag)
+
+        self.mag.subscribe("state:change", self.change_state)
 
         for x in item_table:
             self.items.append(Item(x))
@@ -136,41 +191,28 @@ class GameController:
                 "can_target": "Enemies"
             },
         ]
-
         for x in dependent_item_table:
             self.items.append(Item(x))
         
-        self.save_manager.load_save()
+        self.mag.publish("data:load")
     
-    def handle_event(self, e):
-        if e.type == pygame.QUIT:
-            self.running = False
-        elif self.state == "BATTLE":
-            self.battle.handle_event(e)
-        else:
-            self.dungeon_controller.handle_event(e)
-            
-    
-    def update(self, dt):
-        if self.state == "BATTLE":
-            self.battle.update(dt)
-        else:
-            self.dungeon_controller.update()
-    
-    def render(self):
-        if self.state == "BATTLE":
-            self.battle.render()
-        else:
-            self.dungeon_controller.render()
+    def change_state(self):
+        if self.state == "explore":
+            self.state = "battle"
+        elif self.state == "battle":
+            self.state = "explore"
     
     def run(self):
         self.running = True
         while self.running:
             self.dt = self.clock.tick(self.FPS)/1000
+            self.time = pygame.time.get_ticks()
             for e in pygame.event.get():
-                self.handle_event(e)
-            self.update(self.dt)
-            self.render()
+                if e.type == pygame.QUIT:
+                    self.running = False
+                self.mag.publish(f"{self.state}:input", e=e)
+            self.mag.publish(f"{self.state}:update", dt=self.dt, time=self.time)
+            self.mag.publish(f"{self.state}:render")
             pygame.display.flip()
         pygame.quit()
 

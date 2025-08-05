@@ -5,8 +5,11 @@ from item import Item
 from action import Action
 
 class UI:
-    def __init__(self, game):
+    def __init__(self, game, mag):
         self.game = game
+        self.party = self.game.party
+        self.enemies = []
+        self.mag = mag
         self.WIDTH, self.HEIGHT = 1920, 1080
         self.RENDER_WIDTH, self.RENDER_HEIGHT = 320, 180
         self.render_surface = pygame.Surface((self.RENDER_WIDTH, self.RENDER_HEIGHT))
@@ -16,9 +19,26 @@ class UI:
         self.FOV = math.radians(60)
         self.TILE_SIZE = 64
         self.FONT_NAME = None   
-        self.FONT_SIZE = 40
+        self.FONT_SIZE = 45
         self.font = pygame.font.Font(self.FONT_NAME, self.FONT_SIZE)
         self.enemy_sprites = []
+
+        self.message_queue = []
+        self.last_message_ms = 0.0
+
+        self.options = []
+        self.current_character = None
+        self.current_menu_slot_index = None
+        self.selection = None
+        self.target = None
+
+        self.mag.subscribe("player:position", self.update_player_positioning)
+        self.mag.subscribe("dungeon:render", self.render_dungeon_ui)
+        self.mag.subscribe("battle:update", self.update_battle_ui)
+        self.mag.subscribe("battle:render", self.render_battle_ui)
+        self.mag.subscribe("enemies:created", self.setup_battle_ui)
+        self.mag.subscribe("messages:add", self.add_to_message_queue)
+        self.mag.subscribe("menu:update", self.update_player_menu)
 
     def draw_button(
         self,
@@ -217,7 +237,6 @@ class UI:
         pygame.draw.rect(surface, (20,20,20), (plate_x, plate_y, plate_width, plate_height))
     
     def cast_rays(self, surface, z_buffer, wall_bounds):
-        self.player_x, self.player_y, self.player_angle = self.game.dungeon_controller.player_x, self.game.dungeon_controller.player_y, self.game.dungeon_controller.player_angle
 
         for ray in range(self.RENDER_WIDTH):
             ray_angle = self.player_angle - self.FOV/2 + (ray / self.RENDER_WIDTH) * self.FOV
@@ -279,7 +298,6 @@ class UI:
             surface.fill(color, rect=(ray, wall_top, 1, wall_bottom - wall_top))
     
     def draw_floor_and_ceiling(self, surface):
-        self.player_x, self.player_y, self.player_angle = self.game.dungeon_controller.player_x, self.game.dungeon_controller.player_y, self.game.dungeon_controller.player_angle
 
         mid = self.RENDER_HEIGHT // 2
 
@@ -314,6 +332,7 @@ class UI:
         pygame.draw.rect(self.screen, box_color, rect)
         pygame.draw.rect(self.screen, border_color, rect, border_width)
         return rect
+    
 
     def draw_battlefield(self):
         self.screen.fill((30, 10, 10))
@@ -327,13 +346,13 @@ class UI:
         box_border_color = (200, 200, 200)
         tile = self.draw_rectangle(tile_box_h, tile_box_v, tile_box_width, tile_box_height, tile_box_color, box_border_color)
     
-    def write_text_within_box(self, rect, text, text_color, padding=10, line_spacing=5):
+    def write_text_within_box(self, rect, text, text_color, h_padding=10, v_padding=10, line_spacing=5):
         strings_to_write = text if isinstance(text, list) else [text]
-        x = rect.x + padding
-        y = rect.y + padding
+        x = rect.x + h_padding
+        y = rect.y + v_padding
         for string in strings_to_write:
-            if y + self.FONT_SIZE > rect.bottom - padding:
-                break
+            # if y + self.FONT_SIZE > rect.bottom - padding:
+            #     break
             text_surf = self.font.render(string, True, text_color)
             self.screen.blit(text_surf, (x, y))
             y += self.FONT_SIZE + line_spacing
@@ -341,9 +360,9 @@ class UI:
     def draw_message_box(self, messages):
         # draw message box
         message_box_width = self.WIDTH * 0.75
-        message_box_height = self.HEIGHT * 0.15
+        message_box_height = self.HEIGHT * 0.10
         message_box_h = (self.WIDTH / 2) - (message_box_width / 2)
-        message_box_v = (self.HEIGHT / 2) - (message_box_height / 2)
+        message_box_v = (self.HEIGHT * 0.1) - (message_box_height / 2)
         message_box_color = (30, 30, 30)
         box_border_color = (200, 200, 200)
         message_box = self.draw_rectangle(message_box_h, message_box_v, message_box_width, message_box_height, message_box_color, box_border_color)
@@ -368,14 +387,12 @@ class UI:
     #     bottom_row = menu_box_v + tile_height
     #     party_tiles = [self.draw_rectangle(*x) for x in [
     #         [left_column, top_row, tile_width, tile_height, menu_box_color, box_border_color],
-    #         [middle_column, top_row, tile_width, tile_height, menu_box_color, box_border_color],
-    #         [right_column, top_row, tile_width, tile_height, menu_box_color, box_border_color],
-    #         [left_column, bottom_row, tile_width, tile_height, menu_box_color, box_border_color],
+    #         [middle_column, top_row, tile_width, tile_height, menu_box_colselected_enemieslor, box_border_color],
     #         [middle_column, bottom_row, tile_width, tile_height, menu_box_color, box_border_color],
     #         [right_column, bottom_row, tile_width, tile_height, menu_box_color, box_border_color]
     #     ]]
     #     # write text for each character within their tile
-    #     zipped_party_tiles = zip(group, party_tiles)
+    #     zipped_party_tiles = zip(group, party_tiles)update_player_menu
     #     for combo in zipped_party_tiles:
     #         char = combo[0]
     #         tile = combo[1]
@@ -385,42 +402,88 @@ class UI:
     #         ]
     #         self.write_text_within_box(tile, character_data, (200, 200, 200))
     
+    
     def create_sprites(self, party, enemies):
         rect = self.screen.get_rect()
         self.enemy_sprites = pygame.sprite.Group(FadableSprite(char.sprite, ((rect.width / (len(enemies) + 1)) * i, rect.height / 4), 255, orientation="front") for i, char in enumerate(enemies, start=1)) 
-        self.party_sprites = pygame.sprite.Group(FadableSprite(char.sprite, ((rect.width / (len(party) + 1)) * i, rect.height * 0.75), 255, orientation="back") for i, char in enumerate(party, start=1)) 
+        self.party_sprites = pygame.sprite.Group(FadableSprite(char.sprite, ((rect.width / (len(party) + 1)) * i, rect.height * 0.75), 255, orientation="back") for i, char in enumerate(party, start=1))
 
-    def show_one_enemy_sprite(self, index):
-        for i, spr in enumerate(self.enemy_sprites.sprites()):
-            spr.set_target_alpha(255 if i == index else 0)
-    
     def show_one_party_sprite(self, index):
         for i, spr in enumerate(self.party_sprites.sprites()):
             spr.set_target_alpha(255 if i == index else 0)
     
     def draw_sprites(self):
-        for spr in self.enemy_sprites.sprites():  
-            self.screen.blit(spr.image, spr.rect)
-        for spr in self.party_sprites.sprites():  
-            self.screen.blit(spr.image, spr.rect)
+        if self.enemy_sprites:
+            for spr in self.enemy_sprites.sprites():  
+                self.screen.blit(spr.image, spr.rect)
+        if self.party_sprites:
+            for spr in self.party_sprites.sprites():  
+                self.screen.blit(spr.image, spr.rect)
+    
+    def update_player_menu(self, menu):
+        self.options = menu["options"]
+        self.current_character = menu["options"]
+        self.current_menu_slot_index = menu["current_menu_slot_index"]
+        self.selection = menu["selection"]
+        self.target = menu["target"]
+    
+    def draw_party_ui(self):
+        slot_size = self.FONT_SIZE + (self.FONT_SIZE * 0.1)
+        # draw party box
+        party_box_width = self.WIDTH / 3
+        party_box_height = slot_size * len(self.game.party)
+        party_box_h = (self.WIDTH * 0.75) - (party_box_width / 2)
+        party_box_v = self.HEIGHT - (party_box_height + (party_box_height * 0.1))
+        party_box_color = (30, 30, 30)
+        box_border_color = (100, 100, 100)
+        party_box = self.draw_rectangle(party_box_h, party_box_v, party_box_width, party_box_height, party_box_color, box_border_color)
+        # draw individual slots
+        slot_height = self.FONT_SIZE + (self.FONT_SIZE * .10)
+        bar_width = party_box.width / 5
+        bar_height = party_box.height * 0.25
+        bar_color = (20, 20, 20)
+        bar_border_color = (0, 0, 0)
+        bar_h = party_box.right - bar_width - 15
+        #write text
+        text_color = (255, 255, 255)
+        # names
+        party_character_strings = [f'{x.get_name()}' for x in self.game.party]
+        party_names = self.write_text_within_box(party_box, party_character_strings, text_color, h_padding=10, v_padding=10, line_spacing=(self.FONT_SIZE * 0.1))
+        # hp
+        hp_column = party_box.width / 2
+        party_character_strings = [f'{x.get_stats()["cur_health"]}' for x in self.game.party]
+        party_hp = self.write_text_within_box(party_box, party_character_strings, text_color, h_padding=hp_column, v_padding=10, line_spacing=(self.FONT_SIZE * 0.1))
+        #draw atb bars
+        atb_column = party_box.width - bar_width
+        time = self.game.time
+        for i, x in enumerate(self.game.party, start=0):
+            bar_v = party_box.top + ((slot_height * i) + bar_height / 2)
+            self.draw_rectangle(bar_h, bar_v, bar_width, bar_height, bar_color, bar_border_color, border_width=1)
+            progress = x.atb_ms / x.cooldown_ms if x.cooldown_ms > 0 else 0.0
+            progress_color = (0, 255, 255)
+            self.draw_rectangle(bar_h, bar_v, bar_width * min(max(progress, 0.0), 1.0), bar_height, progress_color, bar_border_color, border_width=1)
+        # draw top plate
+        name_plate_box = self.draw_rectangle(party_box_h, party_box_v - slot_height, party_box_width, slot_height, party_box_color, box_border_color)
+        name_text = self.write_text_within_box(name_plate_box, ["Name"], text_color, h_padding=10, v_padding=10, line_spacing=(self.FONT_SIZE * 0.1))
+        hp_text = self.write_text_within_box(name_plate_box, ["HP"], text_color, h_padding=hp_column, v_padding=10, line_spacing=(self.FONT_SIZE * 0.1))
+        atb_text = self.write_text_within_box(name_plate_box, ["ATB"], text_color, h_padding=atb_column, v_padding=10, line_spacing=(self.FONT_SIZE * 0.1))
 
-    def draw_player_menu(self, hover_index, player_menu_options):
+    def draw_player_menu(self):
         # draw menu box
-        menu_box_h = self.WIDTH * 0.65
-        menu_box_v = self.HEIGHT * 0.45
         menu_box_width = self.WIDTH / 5
-        menu_box_height = self.HEIGHT / 5
+        menu_box_height = self.HEIGHT / 3
+        menu_box_h = (self.WIDTH * 0.15) - (menu_box_width / 2)
+        menu_box_v = (self.HEIGHT * 0.75) - (menu_box_height / 2)
         menu_box_color = (30, 30, 30)
         box_border_color = (100, 100, 100)
         menu_box = self.draw_rectangle(menu_box_h, menu_box_v, menu_box_width, menu_box_height, menu_box_color, box_border_color)
-        # draw individual tiles
+        # draw individual slots
         slot_color = (50, 50, 50)
-        slot_border_color = (200, 200, 200)
-        text_color = (200, 200, 200)
         slot_width = menu_box_width
         slot_height = menu_box_height / 5
-        player_menu_option_names = [x.get_name() if isinstance(x, (Character, Action)) else f'{x.quantity}x {x.item.get_name()}' if isinstance(x, Item) else x for x in player_menu_options]
-        options_with_marking = [x+'<' if i == hover_index else x for i,x in enumerate(player_menu_option_names)] 
+        player_menu_option_names = [x.get_name() if isinstance(x, (Character, Action)) else f'{x.quantity}x {x.item.get_name()}' if isinstance(x, Item) else x for x in self.options]
+        options_with_marking = [x+'<' if i == self.current_menu_slot_index else x for i,x in enumerate(player_menu_option_names)] 
+        text_color = (255, 255, 255)
         option_menu = self.write_text_within_box(menu_box, options_with_marking, text_color)
         
         # action_slots = [self.draw_rectangle(*x) for i, x in enumerate(options)]
@@ -444,8 +507,46 @@ class UI:
 
     # def draw_button(self, callback):
 
-    def update(self, dt):
+    def update_player_positioning(self, player_x, player_y, player_angle):
+        self.player_x = player_x
+        self.player_y = player_y
+        self.player_angle = player_angle
+
+    def update_battle_ui(self, dt, time):
         for sprite in self.enemy_sprites.sprites():
             sprite.update(dt)
         for sprite in self.party_sprites.sprites():
             sprite.update(dt)
+        if pygame.time.get_ticks() > self.last_message_ms + 2000:
+            self.message_queue.clear()
+
+    def render_dungeon_ui(self):
+        self.draw_dungeon_geometry()
+    
+    def setup_battle_ui(self, enemies):
+        self.create_sprites(self.party, enemies)
+    
+    def clear_messages(self):
+        self.message_queue.clear()
+
+    def add_to_message_queue(self, messages):
+        self.clear_messages()
+        if isinstance(messages, (str, int)):
+            self.message_queue.append(messages)
+        elif isinstance(messages, list):
+            for message in messages:
+                self.message_queue.append(message)
+        else:
+            self.message_queue.append('Failed to get message!')
+        self.last_message_ms = pygame.time.get_ticks()
+    
+    def render_battle_ui(self):
+        self.draw_battlefield()
+        self.draw_sprites()
+        if self.options:
+            self.draw_player_menu()
+        if self.game.party:
+            self.draw_party_ui()
+        if self.message_queue:
+            self.draw_message_box(self.message_queue)
+        
