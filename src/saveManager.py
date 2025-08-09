@@ -4,7 +4,7 @@ from character import Character
 # Name - HP - ATT - RES - SPD - Player
 party_table = [
     {
-        "name": "Wynn",
+        "name": "Wyros",
         "max_health": 12,
         "cur_health": 12,
         "attack": 3,
@@ -20,10 +20,10 @@ party_table = [
             "Stella",
             "Starshower"
         ],
-        "sprite": "wynn"
+        "sprite": "wyros"
     },
     {
-        "name": "Rayne",
+        "name": "Sierra",
         "max_health": 12,
         "cur_health": 12,
         "attack": 3,
@@ -39,7 +39,26 @@ party_table = [
             "Stella",
             "Starshower"
         ],
-        "sprite": "rayne"
+        "sprite": "sierra"
+    },
+    {
+        "name": "Amy",
+        "max_health": 12,
+        "cur_health": 12,
+        "attack": 3,
+        "resistance": 1,
+        "speed": 2,
+        "is_party": True,
+        "inventory": [
+            {"name":"Minor Potion of Healing", "quantity":3},
+            {"name":"Silver Revolver", "quantity":1},
+            {"name":"Revolver Ammo", "quantity":10},
+        ],
+        "magic": [
+            "Stella",
+            "Starshower"
+        ],
+        "sprite": "amy"
     },
 ]
 

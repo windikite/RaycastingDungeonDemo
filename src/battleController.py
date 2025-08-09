@@ -9,7 +9,7 @@ class BattleController:
         self.game = game
         self.mag = mag
         self.enemy_templates = self.game.enemy_templates
-        self.turn_delay_ms = 2000#time to delay while each action wraps up animations, etc
+        self.turn_delay_ms = 4000#time to delay while each action wraps up animations, etc
         self.current_character_index = 0
         self.turn_order = []
         self.atb_paused = False
@@ -85,6 +85,11 @@ class BattleController:
         return party_ready, enemy_ready
     
     def update(self, dt, time):
+        # check for victory or defeat
+        if (time - self.last_turn_ms >= self.turn_delay_ms):
+            end = self.check_victory()
+            if end:
+                self.end_battle()
         #remove all dead characters from action queue and purge their turns
         self.action_queue = [
         c for c in self.action_queue

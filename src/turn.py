@@ -6,5 +6,5 @@ class Turn:
     
     def resolve_turn(self):
         result = self.action.activate(self.character, self.target)
-        self.character.set_cooldown(6000)
+        self.character.set_cooldown(10000)
         return result

@@ -7,8 +7,6 @@ from action import Action
 class UI:
     def __init__(self, game, mag):
         self.game = game
-        self.party = self.game.party
-        self.enemies = []
         self.mag = mag
         self.WIDTH, self.HEIGHT = 1920, 1080
         self.RENDER_WIDTH, self.RENDER_HEIGHT = 320, 180
@@ -410,8 +408,8 @@ class UI:
     
     def create_sprites(self, party, enemies):
         rect = self.screen.get_rect()
-        self.enemy_sprites = pygame.sprite.Group(FadableSprite(char.id, char.sprite, ((rect.width / (len(enemies) + 1)) * i, rect.height / 4), 255, orientation="front") for i, char in enumerate(enemies, start=1)) 
-        self.party_sprites = pygame.sprite.Group(FadableSprite(char.id, char.sprite, ((rect.width / (len(party) + 1)) * i, rect.height * 0.75), 255, orientation="back") for i, char in enumerate(party, start=1))
+        self.enemy_sprites = pygame.sprite.Group(FadableSprite(char.id, char.sprite, ((rect.width / (len(enemies) + 1)) * i, rect.height / 4), size=(480, 480), default_alpha=255, orientation="front") for i, char in enumerate(enemies, start=1)) 
+        self.party_sprites = pygame.sprite.Group(FadableSprite(char.id, char.sprite, ((rect.width / (len(party) + 1)) * i, rect.height * 0.75), default_alpha=255, orientation="back") for i, char in enumerate(party, start=1))
 
     def show_one_party_sprite(self, index):
         for i, spr in enumerate(self.party_sprites.sprites()):
@@ -544,7 +542,7 @@ class UI:
         self.draw_dungeon_geometry()
     
     def setup_battle_ui(self, enemies):
-        self.create_sprites(self.party, enemies)
+        self.create_sprites(self.game.party, enemies)
     
     def clear_messages(self):
         self.message_queue.clear()

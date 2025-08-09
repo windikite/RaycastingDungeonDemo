@@ -33,8 +33,50 @@ dungeon_map = [
 
 # Name - HP - ATT - RES - SPD - Player
 enemy_table = [
+    # {
+    #     "name": "Goblin",
+    #     "max_health": 5,
+    #     "cur_health": 5,
+    #     "attack": 3,
+    #     "resistance": 1,
+    #     "speed": 3,
+    #     "is_party": False,
+    #     "inventory": [
+    #     ],
+    #     "magic": [
+    #     ],
+    #     "sprite": "goblin"
+    # },
+    # {
+    #     "name": "Slime",
+    #     "max_health": 15,
+    #     "cur_health": 15,
+    #     "attack": 2,
+    #     "resistance": 2,
+    #     "speed": 0,
+    #     "is_party": False,
+    #     "inventory": [
+    #     ],
+    #     "magic": [
+    #     ],
+    #     "sprite": "slime"
+    # },
+    # {
+    #     "name": "Skeleton",
+    #     "max_health": 3,
+    #     "cur_health": 3,
+    #     "attack": 2,
+    #     "resistance": 2,
+    #     "speed": 1,
+    #     "is_party": False,
+    #     "inventory": [
+    #     ],
+    #     "magic": [
+    #     ],
+    #     "sprite": "skeleton"
+    # },
     {
-        "name": "Goblin",
+        "name": "Snix",
         "max_health": 5,
         "cur_health": 5,
         "attack": 3,
@@ -45,10 +87,10 @@ enemy_table = [
         ],
         "magic": [
         ],
-        "sprite": "goblin"
+        "sprite": "snix"
     },
     {
-        "name": "Slime",
+        "name": "Snox",
         "max_health": 15,
         "cur_health": 15,
         "attack": 2,
@@ -59,10 +101,10 @@ enemy_table = [
         ],
         "magic": [
         ],
-        "sprite": "slime"
+        "sprite": "snox"
     },
     {
-        "name": "Skeleton",
+        "name": "Snax",
         "max_health": 3,
         "cur_health": 3,
         "attack": 2,
@@ -73,7 +115,7 @@ enemy_table = [
         ],
         "magic": [
         ],
-        "sprite": "skeleton"
+        "sprite": "snax"
     },
 ]
 
